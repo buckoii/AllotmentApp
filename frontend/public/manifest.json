@@ -1,0 +1,9 @@
+{
+  "name": "Allotment Planner",
+  "short_name": "Allotment",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f6f3ee",
+  "theme_color": "#2f5233",
+  "icons": []
+}

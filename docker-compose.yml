@@ -1,0 +1,13 @@
+services:
+  allotment:
+    build: .
+    image: allotment
+    container_name: allotment
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      FLASK_SECRET_KEY: "${FLASK_SECRET_KEY}"
+      DB_PATH: /data/allotment.db
+    volumes:
+      - /opt/allotment/data:/data

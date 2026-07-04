@@ -1,0 +1,20 @@
+async function request(method, path, body) {
+  const res = await fetch(`/api${path}`, {
+    method,
+    credentials: "include",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 204) return null;
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new Error((data && data.error) || `Request failed (${res.status})`);
+  }
+  return data;
+}
+
+export const api = {
+  get: (path) => request("GET", path),
+  post: (path, body) => request("POST", path, body),
+  patch: (path, body) => request("PATCH", path, body),
+};
