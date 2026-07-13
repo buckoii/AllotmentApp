@@ -17,6 +17,9 @@ PLANTING_UPDATE_FIELDS = {
     "sow_date", "pricked_out_date", "hardened_off_date", "transplanted_date",
     "first_harvest_date", "last_harvest_date", "status", "notes",
 }
+BUSH_UPDATE_FIELDS = {
+    "plot_id", "planted_date", "fruiting_start_month", "fruiting_end_month", "status", "notes",
+}
 EXPENSE_CATEGORIES = {"fees", "tools", "compost", "seeds", "other"}
 
 
@@ -35,6 +38,7 @@ def plant_to_dict(row):
     d["value_per_sqm_per_week"] = growth.value_per_sqm_per_week(row)
     d["total_lifecycle_weeks"] = round(growth.total_lifecycle_days(row) / 7, 1)
     d["frost_tender"] = bool(d["frost_tender"])
+    d["is_bush"] = bool(d["is_bush"])
     return d
 
 
@@ -45,6 +49,19 @@ def planting_to_dict(row, plant_row):
     d["progress_percent"] = growth.progress_percent(row, plant_row)
     d["progress_color"] = growth.progress_color(d["progress_percent"])
     d["next_task"] = task
+    return d
+
+
+def bush_to_dict(row, plant_row, harvest_totals=None):
+    d = dict(row)
+    d["plant"] = plant_to_dict(plant_row)
+    d["fruiting_now"] = growth.bush_fruiting_now(row)
+    anchor = row["planted_date"] or row["created_at"][:10]
+    d["care_tasks"] = growth.care_tasks(anchor, plant_row)
+    totals = harvest_totals or {"quantity_g": 0, "value_gbp": 0, "count": 0}
+    d["total_quantity_g"] = totals["quantity_g"]
+    d["total_value_gbp"] = round(totals["value_gbp"], 2)
+    d["harvest_count"] = totals["count"]
     return d
 
 
@@ -109,11 +126,18 @@ def me():
 def catalog():
     month = request.args.get("month", type=int)
     category = request.args.get("category")
+    bush = request.args.get("bush")
     conn = get_connection()
     rows = conn.execute("SELECT * FROM plants ORDER BY name").fetchall()
     conn.close()
 
     plants = [plant_to_dict(r) for r in rows]
+    # Bushes (perennial soft fruit) are tracked separately from the one-shot
+    # annual sow/plant flow this catalog otherwise serves - exclude them
+    # unless the caller explicitly asks for the bush catalog (Fruit Bushes'
+    # "add a bush" picker passes bush=true).
+    want_bush = (bush or "").lower() in ("1", "true", "yes")
+    plants = [p for p in plants if p["is_bush"] == want_bush]
     if category:
         plants = [p for p in plants if p["category"] == category]
     if month:
@@ -263,36 +287,180 @@ def bed_sharing(planting_id):
     return jsonify([plant_to_dict(c) for c in candidates])
 
 
+# ---- Fruit Bushes ----
+# Perennial soft fruit (strawberries, currants, canes, rhubarb...): planted
+# once, fruits again every year, so it doesn't fit the one-shot sow-to-
+# harvest `plantings` lifecycle - see CLAUDE.md's "known gaps".
+
+def _harvest_totals(conn, bush_id):
+    row = conn.execute(
+        """SELECT COALESCE(SUM(quantity_g), 0) AS quantity_g, COALESCE(SUM(value_gbp), 0) AS value_gbp,
+                  COUNT(*) AS count
+           FROM harvests WHERE bush_id = ?""",
+        (bush_id,),
+    ).fetchone()
+    return dict(row)
+
+
+@app.get("/api/bushes")
+@login_required
+def list_bushes():
+    status = request.args.get("status")
+    conn = get_connection()
+    query = "SELECT * FROM bushes WHERE user_id = ?"
+    params = [session["user_id"]]
+    if status:
+        query += " AND status = ?"
+        params.append(status)
+    query += " ORDER BY created_at DESC"
+    bushes = conn.execute(query, params).fetchall()
+
+    result = []
+    for b in bushes:
+        plant_row = conn.execute("SELECT * FROM plants WHERE id = ?", (b["plant_id"],)).fetchone()
+        result.append(bush_to_dict(b, plant_row, _harvest_totals(conn, b["id"])))
+    conn.close()
+    return jsonify(result)
+
+
+@app.post("/api/bushes")
+@login_required
+def create_bush():
+    data = request.get_json(force=True)
+    conn = get_connection()
+    plant_row = conn.execute("SELECT * FROM plants WHERE id = ?", (data.get("plant_id"),)).fetchone()
+    if not plant_row:
+        conn.close()
+        return jsonify(error="Unknown plant"), 400
+
+    fruiting_start = data.get("fruiting_start_month") or plant_row["harvest_start_month"]
+    fruiting_end = data.get("fruiting_end_month") or plant_row["harvest_end_month"]
+    if not fruiting_start or not fruiting_end:
+        conn.close()
+        return jsonify(error="fruiting_start_month and fruiting_end_month are required"), 400
+
+    cur = conn.execute(
+        """INSERT INTO bushes (user_id, plant_id, plot_id, planted_date, fruiting_start_month, fruiting_end_month, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (
+            session["user_id"],
+            data["plant_id"],
+            data.get("plot_id"),
+            data.get("planted_date"),
+            fruiting_start,
+            fruiting_end,
+            data.get("notes"),
+        ),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM bushes WHERE id = ?", (cur.lastrowid,)).fetchone()
+    conn.close()
+    return jsonify(bush_to_dict(row, plant_row)), 201
+
+
+@app.patch("/api/bushes/<int:bush_id>")
+@login_required
+def update_bush(bush_id):
+    data = request.get_json(force=True)
+    updates = {k: v for k, v in data.items() if k in BUSH_UPDATE_FIELDS}
+    if not updates:
+        return jsonify(error="No valid fields to update"), 400
+
+    conn = get_connection()
+    owner = conn.execute("SELECT user_id FROM bushes WHERE id = ?", (bush_id,)).fetchone()
+    if not owner or owner["user_id"] != session["user_id"]:
+        conn.close()
+        return jsonify(error="Not found"), 404
+
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    conn.execute(f"UPDATE bushes SET {set_clause} WHERE id = ?", (*updates.values(), bush_id))
+    conn.commit()
+    row = conn.execute("SELECT * FROM bushes WHERE id = ?", (bush_id,)).fetchone()
+    plant_row = conn.execute("SELECT * FROM plants WHERE id = ?", (row["plant_id"],)).fetchone()
+    result = bush_to_dict(row, plant_row, _harvest_totals(conn, bush_id))
+    conn.close()
+    return jsonify(result)
+
+
+@app.delete("/api/bushes/<int:bush_id>")
+@login_required
+def delete_bush(bush_id):
+    conn = get_connection()
+    owner = conn.execute("SELECT user_id FROM bushes WHERE id = ?", (bush_id,)).fetchone()
+    if not owner or owner["user_id"] != session["user_id"]:
+        conn.close()
+        return jsonify(error="Not found"), 404
+
+    conn.execute("DELETE FROM harvests WHERE bush_id = ?", (bush_id,))
+    conn.execute("DELETE FROM bushes WHERE id = ?", (bush_id,))
+    conn.commit()
+    conn.close()
+    return "", 204
+
+
 # ---- Harvests ----
 
 @app.get("/api/harvests")
 @login_required
 def list_harvests():
+    planting_id = request.args.get("planting_id", type=int)
+    bush_id = request.args.get("bush_id", type=int)
     conn = get_connection()
-    rows = conn.execute(
-        """SELECT h.*, p.name AS plant_name, p.variety AS plant_variety
-           FROM harvests h JOIN plantings pl ON h.planting_id = pl.id
-           JOIN plants p ON pl.plant_id = p.id
-           WHERE h.user_id = ? ORDER BY h.harvest_date DESC""",
-        (session["user_id"],),
-    ).fetchall()
+    query = """
+        SELECT h.*, COALESCE(p.name, bp.name) AS plant_name, COALESCE(p.variety, bp.variety) AS plant_variety
+        FROM harvests h
+        LEFT JOIN plantings pl ON h.planting_id = pl.id
+        LEFT JOIN plants p ON pl.plant_id = p.id
+        LEFT JOIN bushes bu ON h.bush_id = bu.id
+        LEFT JOIN plants bp ON bu.plant_id = bp.id
+        WHERE h.user_id = ?
+    """
+    params = [session["user_id"]]
+    if planting_id:
+        query += " AND h.planting_id = ?"
+        params.append(planting_id)
+    if bush_id:
+        query += " AND h.bush_id = ?"
+        params.append(bush_id)
+    query += " ORDER BY h.harvest_date DESC"
+    rows = conn.execute(query, params).fetchall()
     conn.close()
-    return jsonify([dict(r) for r in rows])
+
+    result = []
+    for r in rows:
+        d = dict(r)
+        d["source"] = "bush" if r["bush_id"] else "planting"
+        result.append(d)
+    return jsonify(result)
 
 
 @app.post("/api/harvests")
 @login_required
 def create_harvest():
     data = request.get_json(force=True)
+    planting_id = data.get("planting_id")
+    bush_id = data.get("bush_id")
+    if bool(planting_id) == bool(bush_id):
+        return jsonify(error="Provide exactly one of planting_id or bush_id"), 400
+
     conn = get_connection()
-    planting = conn.execute(
-        "SELECT * FROM plantings WHERE id = ? AND user_id = ?",
-        (data["planting_id"], session["user_id"]),
-    ).fetchone()
-    if not planting:
-        conn.close()
-        return jsonify(error="Planting not found"), 404
-    plant_row = conn.execute("SELECT * FROM plants WHERE id = ?", (planting["plant_id"],)).fetchone()
+    planting = None
+    if planting_id:
+        planting = conn.execute(
+            "SELECT * FROM plantings WHERE id = ? AND user_id = ?", (planting_id, session["user_id"])
+        ).fetchone()
+        if not planting:
+            conn.close()
+            return jsonify(error="Planting not found"), 404
+        plant_row = conn.execute("SELECT * FROM plants WHERE id = ?", (planting["plant_id"],)).fetchone()
+    else:
+        bush = conn.execute(
+            "SELECT * FROM bushes WHERE id = ? AND user_id = ?", (bush_id, session["user_id"])
+        ).fetchone()
+        if not bush:
+            conn.close()
+            return jsonify(error="Bush not found"), 404
+        plant_row = conn.execute("SELECT * FROM plants WHERE id = ?", (bush["plant_id"],)).fetchone()
 
     quantity_g = float(data["quantity_g"])
     ref_price = plant_row["ref_price_gbp_per_kg"] or 0
@@ -300,13 +468,13 @@ def create_harvest():
     harvest_date = data.get("harvest_date") or date.today().isoformat()
 
     cur = conn.execute(
-        """INSERT INTO harvests (planting_id, user_id, harvest_date, quantity_g, value_gbp, notes)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (planting["id"], session["user_id"], harvest_date, quantity_g, value_gbp, data.get("notes")),
+        """INSERT INTO harvests (planting_id, bush_id, user_id, harvest_date, quantity_g, value_gbp, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (planting_id, bush_id, session["user_id"], harvest_date, quantity_g, value_gbp, data.get("notes")),
     )
-    if not planting["first_harvest_date"]:
+    if planting and not planting["first_harvest_date"]:
         conn.execute(
-            "UPDATE plantings SET first_harvest_date = ? WHERE id = ?", (harvest_date, planting["id"])
+            "UPDATE plantings SET first_harvest_date = ? WHERE id = ?", (harvest_date, planting_id)
         )
     conn.commit()
     conn.close()
@@ -384,6 +552,53 @@ def delete_expense(expense_id):
     return "", 204
 
 
+# ---- Care Schedule ----
+# Watering/feeding reminders for every active planting and bush, derived
+# from the catalog's guideline frequency (see growth.care_tasks) - a
+# recurring guideline, not a to-do list with a "last done" history.
+
+@app.get("/api/care-schedule")
+@login_required
+def care_schedule():
+    conn = get_connection()
+    user_id = session["user_id"]
+    entries = []
+
+    plantings = conn.execute(
+        "SELECT * FROM plantings WHERE user_id = ? AND status = 'active'", (user_id,)
+    ).fetchall()
+    for p in plantings:
+        plant_row = conn.execute("SELECT * FROM plants WHERE id = ?", (p["plant_id"],)).fetchone()
+        anchor = p["transplanted_date"] or p["sow_date"]
+        for task in growth.care_tasks(anchor, plant_row):
+            entries.append({
+                "source": "planting",
+                "source_id": p["id"],
+                "plant_name": plant_row["name"],
+                "plant_variety": plant_row["variety"],
+                **task,
+            })
+
+    bushes = conn.execute(
+        "SELECT * FROM bushes WHERE user_id = ? AND status = 'active'", (user_id,)
+    ).fetchall()
+    for b in bushes:
+        plant_row = conn.execute("SELECT * FROM plants WHERE id = ?", (b["plant_id"],)).fetchone()
+        anchor = b["planted_date"] or b["created_at"][:10]
+        for task in growth.care_tasks(anchor, plant_row):
+            entries.append({
+                "source": "bush",
+                "source_id": b["id"],
+                "plant_name": plant_row["name"],
+                "plant_variety": plant_row["variety"],
+                **task,
+            })
+
+    conn.close()
+    entries.sort(key=lambda e: e["due_date"])
+    return jsonify(entries)
+
+
 # ---- Dashboard ----
 
 @app.get("/api/dashboard")
@@ -397,6 +612,7 @@ def dashboard():
     ).fetchall()
 
     tasks_due = []
+    care_due_today = 0
     for p in active:
         plant_row = conn.execute("SELECT * FROM plants WHERE id = ?", (p["plant_id"],)).fetchone()
         task = growth.next_task(p, plant_row)
@@ -407,7 +623,24 @@ def dashboard():
                 "plant_variety": plant_row["variety"],
                 **task,
             })
+        anchor = p["transplanted_date"] or p["sow_date"]
+        care_due_today += sum(1 for t in growth.care_tasks(anchor, plant_row) if t["due_today"])
     tasks_due.sort(key=lambda t: t["due_date"])
+
+    active_bushes = conn.execute(
+        "SELECT * FROM bushes WHERE user_id = ? AND status = 'active'", (user_id,)
+    ).fetchall()
+    bushes_fruiting_now = []
+    for b in active_bushes:
+        plant_row = conn.execute("SELECT * FROM plants WHERE id = ?", (b["plant_id"],)).fetchone()
+        if growth.bush_fruiting_now(b):
+            bushes_fruiting_now.append({
+                "bush_id": b["id"],
+                "plant_name": plant_row["name"],
+                "plant_variety": plant_row["variety"],
+            })
+        anchor = b["planted_date"] or b["created_at"][:10]
+        care_due_today += sum(1 for t in growth.care_tasks(anchor, plant_row) if t["due_today"])
 
     succession_reminders = []
     all_plants = conn.execute("SELECT * FROM plants WHERE succession_interval_days IS NOT NULL").fetchall()
@@ -436,6 +669,8 @@ def dashboard():
     return jsonify(
         tasks_due=tasks_due,
         succession_reminders=succession_reminders,
+        bushes_fruiting_now=bushes_fruiting_now,
+        care_tasks_due_today=care_due_today,
         value_saved_total=round(harvest_total, 2),
         expenses_total=round(expense_total, 2),
         net_total=round(harvest_total - expense_total, 2),

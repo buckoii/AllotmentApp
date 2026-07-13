@@ -112,6 +112,50 @@ def next_task(planting, plant, today=None):
     return None
 
 
+def bush_fruiting_now(bush, today=None):
+    """True if a bush's expected fruiting window covers the current month."""
+    today = today or date.today()
+    return month_in_range(today.month, bush["fruiting_start_month"], bush["fruiting_end_month"])
+
+
+def next_due_date(frequency_days, anchor_iso, today=None):
+    """The next on-or-after-today occurrence of a recurring interval
+    (watering/feeding) counted from `anchor_iso`. There's no persistent
+    'last done' log in this model - it's a guideline reminder derived
+    straight from the catalog's frequency and the planting/bush's anchor
+    date, not a to-do list with history."""
+    if not frequency_days or not anchor_iso:
+        return None
+    today = today or date.today()
+    anchor = date.fromisoformat(anchor_iso)
+    if anchor >= today:
+        return anchor
+    days_since = (today - anchor).days
+    remainder = days_since % frequency_days
+    if remainder == 0:
+        return today
+    return today + timedelta(days=frequency_days - remainder)
+
+
+def care_tasks(anchor_iso, plant, today=None):
+    """Watering/feeding reminders for a single planting or bush, derived
+    from the catalog's guideline frequency (`water_frequency_days` /
+    `feed_frequency_days`) and an anchor date. Skips a task type entirely
+    if the catalog has no guideline for it."""
+    today = today or date.today()
+    tasks = []
+    for task_type, freq_key in (("water", "water_frequency_days"), ("feed", "feed_frequency_days")):
+        due = next_due_date(plant[freq_key], anchor_iso, today)
+        if due:
+            tasks.append({
+                "task": task_type,
+                "frequency_days": plant[freq_key],
+                "due_date": due.isoformat(),
+                "due_today": due == today,
+            })
+    return tasks
+
+
 def succession_due(plant, last_sow_date, today=None):
     """True if it's time to sow another batch of a succession crop."""
     if not plant["succession_interval_days"] or not last_sow_date:

@@ -33,6 +33,10 @@ CREATE TABLE IF NOT EXISTS plants (
 
     succession_interval_days INTEGER,      -- nullable; null = not typically succession-sown
     frost_tender INTEGER NOT NULL DEFAULT 0,
+    is_bush INTEGER NOT NULL DEFAULT 0,    -- 1 = perennial soft-fruit bush/cane, tracked via `bushes`
+                                            -- below rather than the one-shot `plantings` lifecycle
+    water_frequency_days INTEGER,          -- guideline watering interval; null = no guideline set
+    feed_frequency_days INTEGER,           -- guideline feeding interval; null = no guideline set
     notes TEXT
 );
 
@@ -78,18 +82,44 @@ CREATE TABLE IF NOT EXISTS plantings (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Individual pickings against a planting (a bean plant gets picked weekly,
--- a parsnip bed gets lifted once). value_gbp is snapshotted at insert time
--- against the plant's ref_price_gbp_per_kg so later catalog price edits
--- don't retroactively rewrite history.
+-- A perennial soft-fruit bush/cane: planted once, fruits again every year
+-- after that (unlike `plantings`, which models a one-shot annual
+-- sow-to-harvest cycle - see CLAUDE.md's "known gaps"). Fruiting window is
+-- stored per-bush, not just on the catalog `plants` row, since the same
+-- variety can ripen earlier/later depending on position/microclimate - it
+-- defaults from the catalog's harvest window at creation but stays
+-- editable per bush.
+CREATE TABLE IF NOT EXISTS bushes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    plant_id INTEGER NOT NULL REFERENCES plants(id),
+    plot_id INTEGER REFERENCES plots(id),
+
+    planted_date TEXT,                     -- nullable - often unknown for an already-established bush
+    fruiting_start_month INTEGER NOT NULL, -- 1-12
+    fruiting_end_month INTEGER NOT NULL,   -- 1-12, wraps like other month ranges in this schema
+
+    status TEXT NOT NULL DEFAULT 'active', -- 'active' | 'removed'
+    notes TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Individual pickings against either a planting or a bush (exactly one of
+-- the two is set - a bean plant gets picked weekly, a parsnip bed gets
+-- lifted once, a strawberry bed gets picked several times across Jun-Aug).
+-- value_gbp is snapshotted at insert time against the plant's
+-- ref_price_gbp_per_kg so later catalog price edits don't retroactively
+-- rewrite history.
 CREATE TABLE IF NOT EXISTS harvests (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    planting_id INTEGER NOT NULL REFERENCES plantings(id),
+    planting_id INTEGER REFERENCES plantings(id),
+    bush_id INTEGER REFERENCES bushes(id),
     user_id INTEGER NOT NULL REFERENCES users(id),
     harvest_date TEXT NOT NULL,
     quantity_g REAL NOT NULL,
     value_gbp REAL NOT NULL,
-    notes TEXT
+    notes TEXT,
+    CHECK ((planting_id IS NOT NULL AND bush_id IS NULL) OR (planting_id IS NULL AND bush_id IS NOT NULL))
 );
 
 CREATE TABLE IF NOT EXISTS expenses (
@@ -102,6 +132,8 @@ CREATE TABLE IF NOT EXISTS expenses (
 );
 
 CREATE INDEX IF NOT EXISTS idx_plantings_user ON plantings(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_bushes_user ON bushes(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_harvests_planting ON harvests(planting_id);
+CREATE INDEX IF NOT EXISTS idx_harvests_bush ON harvests(bush_id);
 CREATE INDEX IF NOT EXISTS idx_harvests_user ON harvests(user_id, harvest_date);
 CREATE INDEX IF NOT EXISTS idx_expenses_user ON expenses(user_id, expense_date);

@@ -59,6 +59,29 @@ export default function Dashboard() {
         </ul>
         {data.succession_reminders.length > 0 && <Link className="btn-link" to="/planner">Go to Season Planner &rarr;</Link>}
       </section>
+
+      <section>
+        <h2>Fruit bushes in season</h2>
+        {data.bushes_fruiting_now.length === 0 && <p className="empty-hint">Nothing fruiting right now.</p>}
+        <ul className="task-list">
+          {data.bushes_fruiting_now.map((b) => (
+            <li key={b.bush_id} className="task-row">
+              <span>{b.plant_name}{b.plant_variety ? ` (${b.plant_variety})` : ""} should be fruiting - go pick it</span>
+            </li>
+          ))}
+        </ul>
+        {data.bushes_fruiting_now.length > 0 && <Link className="btn-link" to="/bushes">View Fruit Bushes &rarr;</Link>}
+      </section>
+
+      <section>
+        <h2>Watering &amp; feeding due today</h2>
+        {data.care_tasks_due_today === 0 ? (
+          <p className="empty-hint">Nothing due today.</p>
+        ) : (
+          <p>{data.care_tasks_due_today} task{data.care_tasks_due_today === 1 ? "" : "s"} due today.</p>
+        )}
+        <Link className="btn-link" to="/care">View full schedule &rarr;</Link>
+      </section>
     </div>
   );
 }

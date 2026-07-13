@@ -153,6 +153,8 @@ input, select, textarea {
 .data-table tfoot td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: none; }
 
 .expense-form { display: flex; gap: 0.6rem; margin: 1rem 0; flex-wrap: wrap; align-items: center; }
+.bush-add-form { align-items: flex-end; }
+.care-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
 @media (max-width: 640px) {
   .nav-bar { flex-wrap: wrap; }

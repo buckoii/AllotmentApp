@@ -6,7 +6,9 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import SeasonPlanner from "./pages/SeasonPlanner";
 import MyPlot from "./pages/MyPlot";
+import FruitBushes from "./pages/FruitBushes";
 import HarvestLog from "./pages/HarvestLog";
+import CareSchedule from "./pages/CareSchedule";
 import Expenses from "./pages/Expenses";
 
 function Shell() {
@@ -27,7 +29,9 @@ function Shell() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/planner" element={<SeasonPlanner />} />
           <Route path="/my-plot" element={<MyPlot />} />
+          <Route path="/bushes" element={<FruitBushes />} />
           <Route path="/harvest" element={<HarvestLog />} />
+          <Route path="/care" element={<CareSchedule />} />
           <Route path="/expenses" element={<Expenses />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -6,7 +6,9 @@ const LINKS = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/planner", label: "Season Planner" },
   { to: "/my-plot", label: "My Plot" },
+  { to: "/bushes", label: "Fruit Bushes" },
   { to: "/harvest", label: "Harvest Log" },
+  { to: "/care", label: "Watering & Feeding" },
   { to: "/expenses", label: "Expenses" },
 ];
 

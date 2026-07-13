@@ -3,12 +3,15 @@
 # early-mid May). Figures are drawn from typical UK seed-packet/RHS guidance
 # and are a reasonable starting point, NOT verified against your specific
 # seed packets - check sow windows and days-to-harvest against what's on the
-# packet before trusting this for anything time-critical.
+# packet before trusting this for anything time-critical. Same caveat
+# applies to `water_frequency_days`/`feed_frequency_days` - rule-of-thumb
+# guideline intervals, not a substitute for watching the actual weather/soil.
 #
-# Deliberately left out of this first pass: perennial fruit (strawberries,
-# raspberries, rhubarb) and overwintering brassicas (spring cabbage sown the
-# previous summer). Both need a "spans more than one season" data model this
-# schema doesn't handle yet - see CLAUDE.md.
+# Perennial soft fruit (`is_bush=1`) is tracked via the `bushes` table
+# instead of the one-shot `plantings` lifecycle - see CLAUDE.md. Rhubarb is
+# included here too even though it's botanically a vegetable, since it's
+# grown/eaten as fruit and shares the same "planted once, crops every year"
+# shape as the others.
 #
 # Field order matches schema.sql's `plants` table (minus the id).
 PLANTS = [
@@ -17,7 +20,8 @@ PLANTS = [
     # transplant_weeks, transplant_start, transplant_end,
     # maturity_from, days_min, days_max, harvest_start, harvest_end,
     # spacing_cm, yield_unit, typical_yield_g, ref_price_gbp_kg,
-    # succession_days, frost_tender, notes
+    # succession_days, frost_tender, is_bush, water_frequency_days,
+    # feed_frequency_days, notes
 
     dict(name="Radish", variety="Summer", category="veg", germination_days_min=4, germination_days_max=7,
          germination_method="outdoor", germination_temp_c=None,
@@ -25,7 +29,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=25, days_to_harvest_max=35, harvest_start_month=4, harvest_end_month=9,
          spacing_cm=3, yield_unit="per_metre_row", typical_yield_g=300, ref_price_gbp_per_kg=3.50,
-         succession_interval_days=14, frost_tender=0, notes="Fastest crop on the plot - ideal gap-filler between slower rows."),
+         succession_interval_days=14, frost_tender=0, is_bush=0, water_frequency_days=3, feed_frequency_days=None,
+         notes="Fastest crop on the plot - ideal gap-filler between slower rows."),
 
     dict(name="Lettuce", variety="Loose-leaf / cut-and-come-again", category="veg", germination_days_min=7, germination_days_max=10,
          germination_method="either", germination_temp_c=15,
@@ -33,7 +38,8 @@ PLANTS = [
          transplant_weeks_after_sow=3, transplant_start_month=4, transplant_end_month=8,
          maturity_from="sow", days_to_harvest_min=40, days_to_harvest_max=60, harvest_start_month=5, harvest_end_month=10,
          spacing_cm=20, yield_unit="per_plant", typical_yield_g=150, ref_price_gbp_per_kg=4.50,
-         succession_interval_days=21, frost_tender=0, notes="Cut-and-come-again types give multiple pickings per plant."),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=2, feed_frequency_days=None,
+         notes="Cut-and-come-again types give multiple pickings per plant."),
 
     dict(name="Lettuce", variety="Hearting (e.g. Little Gem)", category="veg", germination_days_min=7, germination_days_max=10,
          germination_method="either", germination_temp_c=15,
@@ -41,7 +47,8 @@ PLANTS = [
          transplant_weeks_after_sow=3, transplant_start_month=4, transplant_end_month=8,
          maturity_from="sow", days_to_harvest_min=55, days_to_harvest_max=70, harvest_start_month=6, harvest_end_month=9,
          spacing_cm=25, yield_unit="per_plant", typical_yield_g=200, ref_price_gbp_per_kg=1.20,
-         succession_interval_days=21, frost_tender=0, notes="One-off harvest per plant, unlike loose-leaf types."),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=3, feed_frequency_days=None,
+         notes="One-off harvest per plant, unlike loose-leaf types."),
 
     dict(name="Spinach", variety=None, category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="outdoor", germination_temp_c=None,
@@ -49,7 +56,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=40, days_to_harvest_max=50, harvest_start_month=5, harvest_end_month=10,
          spacing_cm=15, yield_unit="per_metre_row", typical_yield_g=500, ref_price_gbp_per_kg=6.00,
-         succession_interval_days=21, frost_tender=0, notes="Bolts fast in hot/dry spells - keep watered, favour early/late sowings."),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=2, feed_frequency_days=None,
+         notes="Bolts fast in hot/dry spells - keep watered, favour early/late sowings."),
 
     dict(name="Rocket", variety=None, category="veg", germination_days_min=5, germination_days_max=10,
          germination_method="outdoor", germination_temp_c=None,
@@ -57,7 +65,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=25, days_to_harvest_max=40, harvest_start_month=4, harvest_end_month=10,
          spacing_cm=15, yield_unit="per_metre_row", typical_yield_g=200, ref_price_gbp_per_kg=8.00,
-         succession_interval_days=14, frost_tender=0, notes="Very fast; sow little and often."),
+         succession_interval_days=14, frost_tender=0, is_bush=0, water_frequency_days=2, feed_frequency_days=None,
+         notes="Very fast; sow little and often."),
 
     dict(name="Spring Onion", variety=None, category="veg", germination_days_min=10, germination_days_max=14,
          germination_method="outdoor", germination_temp_c=None,
@@ -65,7 +74,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=60, days_to_harvest_max=70, harvest_start_month=6, harvest_end_month=9,
          spacing_cm=5, yield_unit="per_metre_row", typical_yield_g=250, ref_price_gbp_per_kg=7.00,
-         succession_interval_days=21, frost_tender=0, notes=None),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=4, feed_frequency_days=None,
+         notes=None),
 
     dict(name="Pak Choi", variety=None, category="veg", germination_days_min=4, germination_days_max=7,
          germination_method="outdoor", germination_temp_c=None,
@@ -73,7 +83,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=35, days_to_harvest_max=45, harvest_start_month=6, harvest_end_month=10,
          spacing_cm=20, yield_unit="per_plant", typical_yield_g=200, ref_price_gbp_per_kg=5.00,
-         succession_interval_days=21, frost_tender=0, notes="Prone to bolting if sown before May."),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=2, feed_frequency_days=None,
+         notes="Prone to bolting if sown before May."),
 
     dict(name="Carrot", variety=None, category="veg", germination_days_min=14, germination_days_max=21,
          germination_method="outdoor", germination_temp_c=None,
@@ -81,7 +92,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=70, days_to_harvest_max=100, harvest_start_month=6, harvest_end_month=10,
          spacing_cm=5, yield_unit="per_metre_row", typical_yield_g=1500, ref_price_gbp_per_kg=1.00,
-         succession_interval_days=21, frost_tender=0, notes="Doesn't transplant - always direct sow. Fine mesh recommended against carrot fly."),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=7, feed_frequency_days=None,
+         notes="Doesn't transplant - always direct sow. Fine mesh recommended against carrot fly."),
 
     dict(name="Parsnip", variety=None, category="veg", germination_days_min=14, germination_days_max=28,
          germination_method="outdoor", germination_temp_c=None,
@@ -89,7 +101,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=100, days_to_harvest_max=180, harvest_start_month=9, harvest_end_month=2,
          spacing_cm=15, yield_unit="per_metre_row", typical_yield_g=2000, ref_price_gbp_per_kg=1.10,
-         succession_interval_days=None, frost_tender=0, notes="Slow germinator - use fresh seed each year. Long bed occupancy: good candidate to interplant with radish."),
+         succession_interval_days=None, frost_tender=0, is_bush=0, water_frequency_days=7, feed_frequency_days=None,
+         notes="Slow germinator - use fresh seed each year. Long bed occupancy: good candidate to interplant with radish."),
 
     dict(name="Beetroot", variety=None, category="veg", germination_days_min=10, germination_days_max=14,
          germination_method="outdoor", germination_temp_c=None,
@@ -97,7 +110,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=60, days_to_harvest_max=90, harvest_start_month=6, harvest_end_month=10,
          spacing_cm=10, yield_unit="per_metre_row", typical_yield_g=1500, ref_price_gbp_per_kg=1.80,
-         succession_interval_days=21, frost_tender=0, notes=None),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=5, feed_frequency_days=None,
+         notes=None),
 
     dict(name="Turnip", variety=None, category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="outdoor", germination_temp_c=None,
@@ -105,7 +119,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=40, days_to_harvest_max=60, harvest_start_month=5, harvest_end_month=10,
          spacing_cm=15, yield_unit="per_metre_row", typical_yield_g=1200, ref_price_gbp_per_kg=1.30,
-         succession_interval_days=21, frost_tender=0, notes="Fast enough to succession like radish."),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=5, feed_frequency_days=None,
+         notes="Fast enough to succession like radish."),
 
     dict(name="Swede", variety=None, category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="outdoor", germination_temp_c=None,
@@ -113,7 +128,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=150, days_to_harvest_max=200, harvest_start_month=10, harvest_end_month=2,
          spacing_cm=23, yield_unit="per_plant", typical_yield_g=800, ref_price_gbp_per_kg=1.00,
-         succession_interval_days=None, frost_tender=0, notes="Long-season crop, hardy - can stay in the ground over winter."),
+         succession_interval_days=None, frost_tender=0, is_bush=0, water_frequency_days=7, feed_frequency_days=None,
+         notes="Long-season crop, hardy - can stay in the ground over winter."),
 
     dict(name="Cabbage", variety="Summer", category="veg", germination_days_min=7, germination_days_max=12,
          germination_method="either", germination_temp_c=15,
@@ -121,7 +137,8 @@ PLANTS = [
          transplant_weeks_after_sow=5, transplant_start_month=5, transplant_end_month=6,
          maturity_from="transplant", days_to_harvest_min=60, days_to_harvest_max=90, harvest_start_month=7, harvest_end_month=9,
          spacing_cm=40, yield_unit="per_plant", typical_yield_g=1000, ref_price_gbp_per_kg=1.00,
-         succession_interval_days=None, frost_tender=0, notes="Net against pigeons and cabbage white butterfly."),
+         succession_interval_days=None, frost_tender=0, is_bush=0, water_frequency_days=4, feed_frequency_days=21,
+         notes="Net against pigeons and cabbage white butterfly."),
 
     dict(name="Calabrese (Broccoli)", variety=None, category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="either", germination_temp_c=15,
@@ -129,7 +146,8 @@ PLANTS = [
          transplant_weeks_after_sow=5, transplant_start_month=5, transplant_end_month=7,
          maturity_from="transplant", days_to_harvest_min=60, days_to_harvest_max=80, harvest_start_month=7, harvest_end_month=10,
          spacing_cm=30, yield_unit="per_plant", typical_yield_g=250, ref_price_gbp_per_kg=3.00,
-         succession_interval_days=21, frost_tender=0, notes="Cut the main head to encourage smaller side shoots for weeks after."),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=4, feed_frequency_days=21,
+         notes="Cut the main head to encourage smaller side shoots for weeks after."),
 
     dict(name="Cauliflower", variety="Summer/Autumn", category="veg", germination_days_min=7, germination_days_max=12,
          germination_method="either", germination_temp_c=15,
@@ -137,7 +155,8 @@ PLANTS = [
          transplant_weeks_after_sow=5, transplant_start_month=5, transplant_end_month=6,
          maturity_from="transplant", days_to_harvest_min=90, days_to_harvest_max=120, harvest_start_month=8, harvest_end_month=10,
          spacing_cm=45, yield_unit="per_plant", typical_yield_g=800, ref_price_gbp_per_kg=1.60,
-         succession_interval_days=None, frost_tender=0, notes="Fussier than other brassicas - needs steady moisture and fertile soil."),
+         succession_interval_days=None, frost_tender=0, is_bush=0, water_frequency_days=3, feed_frequency_days=14,
+         notes="Fussier than other brassicas - needs steady moisture and fertile soil."),
 
     dict(name="Kale", variety=None, category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="either", germination_temp_c=15,
@@ -145,7 +164,8 @@ PLANTS = [
          transplant_weeks_after_sow=5, transplant_start_month=5, transplant_end_month=7,
          maturity_from="transplant", days_to_harvest_min=55, days_to_harvest_max=75, harvest_start_month=8, harvest_end_month=3,
          spacing_cm=45, yield_unit="per_plant", typical_yield_g=1200, ref_price_gbp_per_kg=4.50,
-         succession_interval_days=None, frost_tender=0, notes="Very hardy - keeps producing leaves right through winter."),
+         succession_interval_days=None, frost_tender=0, is_bush=0, water_frequency_days=5, feed_frequency_days=21,
+         notes="Very hardy - keeps producing leaves right through winter."),
 
     dict(name="Brussels Sprouts", variety=None, category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="either", germination_temp_c=15,
@@ -153,7 +173,8 @@ PLANTS = [
          transplant_weeks_after_sow=6, transplant_start_month=5, transplant_end_month=6,
          maturity_from="transplant", days_to_harvest_min=120, days_to_harvest_max=160, harvest_start_month=10, harvest_end_month=2,
          spacing_cm=60, yield_unit="per_plant", typical_yield_g=700, ref_price_gbp_per_kg=2.50,
-         succession_interval_days=None, frost_tender=0, notes="Long season, needs firm soil and staking in exposed plots."),
+         succession_interval_days=None, frost_tender=0, is_bush=0, water_frequency_days=5, feed_frequency_days=21,
+         notes="Long season, needs firm soil and staking in exposed plots."),
 
     dict(name="Kohlrabi", variety=None, category="veg", germination_days_min=5, germination_days_max=10,
          germination_method="outdoor", germination_temp_c=None,
@@ -161,7 +182,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=55, days_to_harvest_max=65, harvest_start_month=6, harvest_end_month=10,
          spacing_cm=25, yield_unit="per_plant", typical_yield_g=250, ref_price_gbp_per_kg=2.20,
-         succession_interval_days=21, frost_tender=0, notes="Fast brassica, good succession candidate."),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=3, feed_frequency_days=None,
+         notes="Fast brassica, good succession candidate."),
 
     dict(name="Broad Bean", variety=None, category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="outdoor", germination_temp_c=None,
@@ -169,7 +191,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=85, days_to_harvest_max=100, harvest_start_month=6, harvest_end_month=8,
          spacing_cm=20, yield_unit="per_plant", typical_yield_g=300, ref_price_gbp_per_kg=3.50,
-         succession_interval_days=None, frost_tender=0, notes="A late-Oct/Nov autumn sowing is also possible for an earlier crop - treat as a separate planting."),
+         succession_interval_days=None, frost_tender=0, is_bush=0, water_frequency_days=5, feed_frequency_days=None,
+         notes="A late-Oct/Nov autumn sowing is also possible for an earlier crop - treat as a separate planting."),
 
     dict(name="Runner Bean", variety=None, category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="either", germination_temp_c=15,
@@ -177,7 +200,8 @@ PLANTS = [
          transplant_weeks_after_sow=3, transplant_start_month=6, transplant_end_month=6,
          maturity_from="sow", days_to_harvest_min=70, days_to_harvest_max=90, harvest_start_month=7, harvest_end_month=9,
          spacing_cm=30, yield_unit="per_plant", typical_yield_g=1500, ref_price_gbp_per_kg=3.00,
-         succession_interval_days=None, frost_tender=1, notes="Frost tender - don't plant out until risk of frost has passed (typically late May on the Isle of Man)."),
+         succession_interval_days=None, frost_tender=1, is_bush=0, water_frequency_days=3, feed_frequency_days=14,
+         notes="Frost tender - don't plant out until risk of frost has passed (typically late May on the Isle of Man)."),
 
     dict(name="French Bean", variety="Dwarf", category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="either", germination_temp_c=15,
@@ -185,7 +209,8 @@ PLANTS = [
          transplant_weeks_after_sow=3, transplant_start_month=6, transplant_end_month=6,
          maturity_from="sow", days_to_harvest_min=50, days_to_harvest_max=65, harvest_start_month=7, harvest_end_month=9,
          spacing_cm=15, yield_unit="per_plant", typical_yield_g=400, ref_price_gbp_per_kg=4.00,
-         succession_interval_days=21, frost_tender=1, notes=None),
+         succession_interval_days=21, frost_tender=1, is_bush=0, water_frequency_days=3, feed_frequency_days=None,
+         notes=None),
 
     dict(name="Pea", variety=None, category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="outdoor", germination_temp_c=None,
@@ -193,7 +218,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=60, days_to_harvest_max=70, harvest_start_month=6, harvest_end_month=8,
          spacing_cm=5, yield_unit="per_metre_row", typical_yield_g=600, ref_price_gbp_per_kg=5.00,
-         succession_interval_days=21, frost_tender=0, notes="Needs support (netting/twigs) even for shorter varieties."),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=4, feed_frequency_days=None,
+         notes="Needs support (netting/twigs) even for shorter varieties."),
 
     dict(name="Onion", variety="From seed", category="veg", germination_days_min=10, germination_days_max=21,
          germination_method="either", germination_temp_c=15,
@@ -201,7 +227,8 @@ PLANTS = [
          transplant_weeks_after_sow=8, transplant_start_month=4, transplant_end_month=5,
          maturity_from="transplant", days_to_harvest_min=90, days_to_harvest_max=110, harvest_start_month=8, harvest_end_month=9,
          spacing_cm=10, yield_unit="per_plant", typical_yield_g=150, ref_price_gbp_per_kg=1.20,
-         succession_interval_days=None, frost_tender=0, notes="Growing from sets (small bulbs, planted Mar-Apr direct outdoors, no germination stage) is far easier and more common on allotments than seed - track sets as a separate catalog entry if used."),
+         succession_interval_days=None, frost_tender=0, is_bush=0, water_frequency_days=5, feed_frequency_days=None,
+         notes="Growing from sets (small bulbs, planted Mar-Apr direct outdoors, no germination stage) is far easier and more common on allotments than seed - track sets as a separate catalog entry if used."),
 
     dict(name="Leek", variety=None, category="veg", germination_days_min=14, germination_days_max=21,
          germination_method="either", germination_temp_c=15,
@@ -209,7 +236,8 @@ PLANTS = [
          transplant_weeks_after_sow=10, transplant_start_month=5, transplant_end_month=7,
          maturity_from="transplant", days_to_harvest_min=100, days_to_harvest_max=150, harvest_start_month=10, harvest_end_month=3,
          spacing_cm=15, yield_unit="per_plant", typical_yield_g=200, ref_price_gbp_per_kg=2.20,
-         succession_interval_days=None, frost_tender=0, notes="Very hardy - can be left in the ground and lifted as needed through winter."),
+         succession_interval_days=None, frost_tender=0, is_bush=0, water_frequency_days=5, feed_frequency_days=14,
+         notes="Very hardy - can be left in the ground and lifted as needed through winter."),
 
     dict(name="Garlic", variety=None, category="veg", germination_days_min=14, germination_days_max=28,
          germination_method="outdoor", germination_temp_c=None,
@@ -217,7 +245,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=240, days_to_harvest_max=270, harvest_start_month=6, harvest_end_month=7,
          spacing_cm=15, yield_unit="per_plant", typical_yield_g=80, ref_price_gbp_per_kg=9.00,
-         succession_interval_days=None, frost_tender=0, notes="Planted as individual cloves in autumn, harvested the following summer - spans a calendar year boundary."),
+         succession_interval_days=None, frost_tender=0, is_bush=0, water_frequency_days=10, feed_frequency_days=None,
+         notes="Planted as individual cloves in autumn, harvested the following summer - spans a calendar year boundary."),
 
     dict(name="Courgette", variety=None, category="veg", germination_days_min=5, germination_days_max=10,
          germination_method="indoor_heat", germination_temp_c=21,
@@ -225,7 +254,8 @@ PLANTS = [
          transplant_weeks_after_sow=3, transplant_start_month=6, transplant_end_month=6,
          maturity_from="transplant", days_to_harvest_min=45, days_to_harvest_max=60, harvest_start_month=7, harvest_end_month=9,
          spacing_cm=90, yield_unit="per_plant", typical_yield_g=4000, ref_price_gbp_per_kg=2.50,
-         succession_interval_days=None, frost_tender=1, notes="One plant is usually enough for most households - very high yield per plant."),
+         succession_interval_days=None, frost_tender=1, is_bush=0, water_frequency_days=2, feed_frequency_days=10,
+         notes="One plant is usually enough for most households - very high yield per plant."),
 
     dict(name="Pumpkin / Winter Squash", variety=None, category="veg", germination_days_min=7, germination_days_max=10,
          germination_method="indoor_heat", germination_temp_c=21,
@@ -233,7 +263,8 @@ PLANTS = [
          transplant_weeks_after_sow=3, transplant_start_month=6, transplant_end_month=6,
          maturity_from="transplant", days_to_harvest_min=90, days_to_harvest_max=120, harvest_start_month=9, harvest_end_month=10,
          spacing_cm=150, yield_unit="per_plant", typical_yield_g=6000, ref_price_gbp_per_kg=1.20,
-         succession_interval_days=None, frost_tender=1, notes="Needs a lot of space - sprawling habit."),
+         succession_interval_days=None, frost_tender=1, is_bush=0, water_frequency_days=3, feed_frequency_days=14,
+         notes="Needs a lot of space - sprawling habit."),
 
     dict(name="Cucumber", variety="Outdoor ridge", category="veg", germination_days_min=5, germination_days_max=10,
          germination_method="indoor_heat", germination_temp_c=21,
@@ -241,7 +272,8 @@ PLANTS = [
          transplant_weeks_after_sow=3, transplant_start_month=6, transplant_end_month=6,
          maturity_from="transplant", days_to_harvest_min=50, days_to_harvest_max=65, harvest_start_month=7, harvest_end_month=9,
          spacing_cm=60, yield_unit="per_plant", typical_yield_g=2500, ref_price_gbp_per_kg=2.00,
-         succession_interval_days=None, frost_tender=1, notes="Ridge/outdoor types only - greenhouse cucumbers need different (indoor) growing conditions this tool doesn't model yet."),
+         succession_interval_days=None, frost_tender=1, is_bush=0, water_frequency_days=2, feed_frequency_days=10,
+         notes="Ridge/outdoor types only - greenhouse cucumbers need different (indoor) growing conditions this tool doesn't model yet."),
 
     dict(name="Sweetcorn", variety=None, category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="indoor_heat", germination_temp_c=18,
@@ -249,7 +281,8 @@ PLANTS = [
          transplant_weeks_after_sow=3, transplant_start_month=6, transplant_end_month=6,
          maturity_from="transplant", days_to_harvest_min=70, days_to_harvest_max=90, harvest_start_month=8, harvest_end_month=9,
          spacing_cm=40, yield_unit="per_plant", typical_yield_g=250, ref_price_gbp_per_kg=3.50,
-         succession_interval_days=None, frost_tender=1, notes="Plant in a block, not a row, for reliable wind pollination."),
+         succession_interval_days=None, frost_tender=1, is_bush=0, water_frequency_days=4, feed_frequency_days=14,
+         notes="Plant in a block, not a row, for reliable wind pollination."),
 
     dict(name="Tomato", variety="Outdoor / cordon", category="veg", germination_days_min=7, germination_days_max=14,
          germination_method="indoor_heat", germination_temp_c=18,
@@ -257,7 +290,8 @@ PLANTS = [
          transplant_weeks_after_sow=8, transplant_start_month=5, transplant_end_month=6,
          maturity_from="transplant", days_to_harvest_min=60, days_to_harvest_max=80, harvest_start_month=8, harvest_end_month=10,
          spacing_cm=45, yield_unit="per_plant", typical_yield_g=3000, ref_price_gbp_per_kg=3.00,
-         succession_interval_days=None, frost_tender=1, notes="Outdoor varieties only - needs a sheltered, sunny spot; blight risk in a wet Isle of Man summer is real."),
+         succession_interval_days=None, frost_tender=1, is_bush=0, water_frequency_days=2, feed_frequency_days=7,
+         notes="Outdoor varieties only - needs a sheltered, sunny spot; blight risk in a wet Isle of Man summer is real."),
 
     dict(name="Potato", variety="Earlies", category="veg", germination_days_min=14, germination_days_max=21,
          germination_method="outdoor", germination_temp_c=None,
@@ -265,7 +299,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=70, days_to_harvest_max=90, harvest_start_month=6, harvest_end_month=7,
          spacing_cm=30, yield_unit="per_plant", typical_yield_g=600, ref_price_gbp_per_kg=1.00,
-         succession_interval_days=None, frost_tender=1, notes="Chit indoors 4-6 weeks before planting; earth up as shoots grow. 'Sow date' here means the planting-out date, not germination."),
+         succession_interval_days=None, frost_tender=1, is_bush=0, water_frequency_days=7, feed_frequency_days=None,
+         notes="Chit indoors 4-6 weeks before planting; earth up as shoots grow. 'Sow date' here means the planting-out date, not germination."),
 
     dict(name="Potato", variety="Maincrop", category="veg", germination_days_min=14, germination_days_max=21,
          germination_method="outdoor", germination_temp_c=None,
@@ -273,7 +308,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=100, days_to_harvest_max=140, harvest_start_month=8, harvest_end_month=10,
          spacing_cm=40, yield_unit="per_plant", typical_yield_g=1500, ref_price_gbp_per_kg=1.00,
-         succession_interval_days=None, frost_tender=1, notes="Stores well over winter if cured properly - good value crop for a large space."),
+         succession_interval_days=None, frost_tender=1, is_bush=0, water_frequency_days=10, feed_frequency_days=None,
+         notes="Stores well over winter if cured properly - good value crop for a large space."),
 
     dict(name="Basil", variety=None, category="herb", germination_days_min=7, germination_days_max=14,
          germination_method="indoor_heat", germination_temp_c=20,
@@ -281,7 +317,8 @@ PLANTS = [
          transplant_weeks_after_sow=4, transplant_start_month=6, transplant_end_month=6,
          maturity_from="sow", days_to_harvest_min=60, days_to_harvest_max=75, harvest_start_month=6, harvest_end_month=9,
          spacing_cm=20, yield_unit="per_plant", typical_yield_g=100, ref_price_gbp_per_kg=25.00,
-         succession_interval_days=28, frost_tender=1, notes="Hates cold and wet - often does better in a pot in a sheltered spot than in open ground on the Isle of Man."),
+         succession_interval_days=28, frost_tender=1, is_bush=0, water_frequency_days=2, feed_frequency_days=None,
+         notes="Hates cold and wet - often does better in a pot in a sheltered spot than in open ground on the Isle of Man."),
 
     dict(name="Coriander", variety=None, category="herb", germination_days_min=7, germination_days_max=14,
          germination_method="outdoor", germination_temp_c=None,
@@ -289,7 +326,8 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=35, days_to_harvest_max=50, harvest_start_month=5, harvest_end_month=10,
          spacing_cm=15, yield_unit="per_metre_row", typical_yield_g=150, ref_price_gbp_per_kg=20.00,
-         succession_interval_days=21, frost_tender=0, notes="Bolts quickly in warm weather - little and often sowing works best."),
+         succession_interval_days=21, frost_tender=0, is_bush=0, water_frequency_days=3, feed_frequency_days=None,
+         notes="Bolts quickly in warm weather - little and often sowing works best."),
 
     dict(name="Parsley", variety=None, category="herb", germination_days_min=14, germination_days_max=28,
          germination_method="either", germination_temp_c=15,
@@ -297,7 +335,16 @@ PLANTS = [
          transplant_weeks_after_sow=4, transplant_start_month=5, transplant_end_month=7,
          maturity_from="sow", days_to_harvest_min=70, days_to_harvest_max=90, harvest_start_month=6, harvest_end_month=10,
          spacing_cm=20, yield_unit="per_plant", typical_yield_g=100, ref_price_gbp_per_kg=18.00,
-         succession_interval_days=None, frost_tender=0, notes="Slow, erratic germination - notoriously said to go 'to the devil and back' - be patient."),
+         succession_interval_days=None, frost_tender=0, is_bush=0, water_frequency_days=4, feed_frequency_days=None,
+         notes="Slow, erratic germination - notoriously said to go 'to the devil and back' - be patient."),
+
+    # ---- Perennial soft fruit (is_bush=1) - tracked via the `bushes` table.
+    # sow_outdoor_start/end_month here means "typical bare-root/crown
+    # planting window", not a sowing window - kept so growth.sowable_now()
+    # still means something sensible if these ever show up in a "what can I
+    # plant this month" filter. harvest_start/end_month is the reference
+    # fruiting window a new bush's `fruiting_start_month`/`fruiting_end_month`
+    # default from.
 
     dict(name="Strawberry", variety=None, category="fruit", germination_days_min=None, germination_days_max=None,
          germination_method="outdoor", germination_temp_c=None,
@@ -305,6 +352,60 @@ PLANTS = [
          transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
          maturity_from="sow", days_to_harvest_min=60, days_to_harvest_max=90, harvest_start_month=6, harvest_end_month=8,
          spacing_cm=35, yield_unit="per_plant", typical_yield_g=500, ref_price_gbp_per_kg=6.00,
-         succession_interval_days=None, frost_tender=0,
-         notes="PERENNIAL - grown from bought runners/crowns, not seed. 'Sow date' here means planting the crown; it will then crop again every year after this first season, which this tool doesn't yet track automatically."),
+         succession_interval_days=None, frost_tender=0, is_bush=1, water_frequency_days=3, feed_frequency_days=21,
+         notes="PERENNIAL - grown from bought runners/crowns, not seed. Crops again every year after the first season - track as a bush, with a June-August fruiting window and multiple pickings across it."),
+
+    dict(name="Raspberry", variety="Summer-fruiting", category="fruit", germination_days_min=None, germination_days_max=None,
+         germination_method="outdoor", germination_temp_c=None,
+         sow_indoor_start_month=None, sow_indoor_end_month=None, sow_outdoor_start_month=11, sow_outdoor_end_month=3,
+         transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
+         maturity_from="sow", days_to_harvest_min=240, days_to_harvest_max=365, harvest_start_month=7, harvest_end_month=8,
+         spacing_cm=45, yield_unit="per_plant", typical_yield_g=700, ref_price_gbp_per_kg=10.00,
+         succession_interval_days=None, frost_tender=0, is_bush=1, water_frequency_days=4, feed_frequency_days=30,
+         notes="PERENNIAL cane fruit, planted bare-root Nov-Mar. Summer-fruiting varieties crop on the previous year's canes (floricanes) - needs support wires/posts."),
+
+    dict(name="Blackcurrant", variety=None, category="fruit", germination_days_min=None, germination_days_max=None,
+         germination_method="outdoor", germination_temp_c=None,
+         sow_indoor_start_month=None, sow_indoor_end_month=None, sow_outdoor_start_month=11, sow_outdoor_end_month=3,
+         transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
+         maturity_from="sow", days_to_harvest_min=365, days_to_harvest_max=545, harvest_start_month=7, harvest_end_month=8,
+         spacing_cm=150, yield_unit="per_plant", typical_yield_g=2000, ref_price_gbp_per_kg=7.00,
+         succession_interval_days=None, frost_tender=0, is_bush=1, water_frequency_days=5, feed_frequency_days=30,
+         notes="PERENNIAL bush, planted bare-root Nov-Mar. Reliable heavy cropper once established (2-3 years); prune out ~1/3 of old wood each winter."),
+
+    dict(name="Redcurrant", variety=None, category="fruit", germination_days_min=None, germination_days_max=None,
+         germination_method="outdoor", germination_temp_c=None,
+         sow_indoor_start_month=None, sow_indoor_end_month=None, sow_outdoor_start_month=11, sow_outdoor_end_month=3,
+         transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
+         maturity_from="sow", days_to_harvest_min=365, days_to_harvest_max=545, harvest_start_month=7, harvest_end_month=8,
+         spacing_cm=150, yield_unit="per_plant", typical_yield_g=1500, ref_price_gbp_per_kg=9.00,
+         succession_interval_days=None, frost_tender=0, is_bush=1, water_frequency_days=5, feed_frequency_days=30,
+         notes="PERENNIAL bush, planted bare-root Nov-Mar. Tarter than blackcurrants - good for jelly/cordial."),
+
+    dict(name="Gooseberry", variety=None, category="fruit", germination_days_min=None, germination_days_max=None,
+         germination_method="outdoor", germination_temp_c=None,
+         sow_indoor_start_month=None, sow_indoor_end_month=None, sow_outdoor_start_month=11, sow_outdoor_end_month=3,
+         transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
+         maturity_from="sow", days_to_harvest_min=365, days_to_harvest_max=545, harvest_start_month=6, harvest_end_month=7,
+         spacing_cm=150, yield_unit="per_plant", typical_yield_g=2500, ref_price_gbp_per_kg=6.00,
+         succession_interval_days=None, frost_tender=0, is_bush=1, water_frequency_days=5, feed_frequency_days=30,
+         notes="PERENNIAL bush, planted bare-root Nov-Mar. Thorny - prune to an open goblet shape for easier picking."),
+
+    dict(name="Blueberry", variety=None, category="fruit", germination_days_min=None, germination_days_max=None,
+         germination_method="outdoor", germination_temp_c=None,
+         sow_indoor_start_month=None, sow_indoor_end_month=None, sow_outdoor_start_month=11, sow_outdoor_end_month=3,
+         transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
+         maturity_from="sow", days_to_harvest_min=365, days_to_harvest_max=730, harvest_start_month=7, harvest_end_month=8,
+         spacing_cm=120, yield_unit="per_plant", typical_yield_g=1000, ref_price_gbp_per_kg=12.00,
+         succession_interval_days=None, frost_tender=0, is_bush=1, water_frequency_days=2, feed_frequency_days=30,
+         notes="PERENNIAL bush - needs ericaceous (acidic) soil/compost and consistently moist roots; usually easier in a large container of ericaceous compost than open ground unless native soil is already acidic."),
+
+    dict(name="Rhubarb", variety=None, category="fruit", germination_days_min=None, germination_days_max=None,
+         germination_method="outdoor", germination_temp_c=None,
+         sow_indoor_start_month=None, sow_indoor_end_month=None, sow_outdoor_start_month=11, sow_outdoor_end_month=3,
+         transplant_weeks_after_sow=None, transplant_start_month=None, transplant_end_month=None,
+         maturity_from="sow", days_to_harvest_min=365, days_to_harvest_max=365, harvest_start_month=4, harvest_end_month=7,
+         spacing_cm=90, yield_unit="per_plant", typical_yield_g=1500, ref_price_gbp_per_kg=4.50,
+         succession_interval_days=None, frost_tender=0, is_bush=1, water_frequency_days=5, feed_frequency_days=30,
+         notes="PERENNIAL - grown from a crown/root division, not seed. Botanically a vegetable but grown and eaten as a fruit. Don't pull stems in the first year after planting; traditionally stop pulling by mid-summer to let the plant recover."),
 ]
