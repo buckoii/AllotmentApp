@@ -13,8 +13,42 @@ function PlantingCard({ planting, onRefresh }) {
   const [showHarvestForm, setShowHarvestForm] = useState(false);
   const [bedMates, setBedMates] = useState(null);
   const [error, setError] = useState(null);
+  const [editingDates, setEditingDates] = useState(false);
+  const [sowDate, setSowDate] = useState(planting.sow_date);
+  const [transplantedDate, setTransplantedDate] = useState(planting.transplanted_date || "");
+
+  useEffect(() => {
+    setSowDate(planting.sow_date);
+    setTransplantedDate(planting.transplanted_date || "");
+  }, [planting.sow_date, planting.transplanted_date]);
 
   const task = planting.next_task;
+
+  const saveDates = async (e) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      await api.patch(`/plantings/${planting.id}`, {
+        sow_date: sowDate,
+        transplanted_date: transplantedDate || null,
+      });
+      setEditingDates(false);
+      onRefresh();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  const deletePlanting = async () => {
+    if (!window.confirm(`Delete this ${planting.plant.name} entry? This can't be undone.`)) return;
+    setError(null);
+    try {
+      await api.del(`/plantings/${planting.id}`);
+      onRefresh();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
 
   const markTransplanted = async () => {
     setError(null);
@@ -65,8 +99,43 @@ function PlantingCard({ planting, onRefresh }) {
     <div className="planting-card">
       <div className="planting-card-header">
         <h3>{planting.plant.name}{planting.plant.variety ? ` (${planting.plant.variety})` : ""}</h3>
-        <span className="planting-sow-date">Sown {planting.sow_date}</span>
+        <div className="planting-header-actions">
+          <span className="planting-sow-date">Sown {planting.sow_date}</span>
+          <button
+            type="button"
+            className="btn-icon"
+            title="Edit dates"
+            onClick={() => setEditingDates((v) => !v)}
+          >
+            ✎
+          </button>
+          <button
+            type="button"
+            className="btn-icon btn-icon-danger"
+            title="Delete entry"
+            onClick={deletePlanting}
+          >
+            🗑
+          </button>
+        </div>
       </div>
+
+      {editingDates && (
+        <form className="edit-dates-form" onSubmit={saveDates}>
+          <label>
+            Sow date
+            <input type="date" value={sowDate} onChange={(e) => setSowDate(e.target.value)} required />
+          </label>
+          <label>
+            Transplanted date
+            <input type="date" value={transplantedDate} onChange={(e) => setTransplantedDate(e.target.value)} />
+          </label>
+          <div className="plant-form-actions">
+            <button type="submit" className="btn-primary">Save dates</button>
+            <button type="button" className="btn-link" onClick={() => setEditingDates(false)}>Cancel</button>
+          </div>
+        </form>
+      )}
 
       <ProgressBar percent={planting.progress_percent} color={planting.progress_color} />
       <div className="planting-meta-row">

@@ -30,6 +30,17 @@ export default function Expenses() {
     }
   };
 
+  const deleteExpense = async (ex) => {
+    if (!window.confirm(`Delete this expense (${ex.description || ex.category}, £${ex.amount_gbp.toFixed(2)})? This can't be undone.`)) return;
+    setError(null);
+    try {
+      await api.del(`/expenses/${ex.id}`);
+      load();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   const total = expenses.reduce((sum, e) => sum + e.amount_gbp, 0);
 
   return (
@@ -48,7 +59,7 @@ export default function Expenses() {
       </form>
 
       <table className="data-table">
-        <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th></tr></thead>
+        <thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th></th></tr></thead>
         <tbody>
           {expenses.map((e) => (
             <tr key={e.id}>
@@ -56,6 +67,11 @@ export default function Expenses() {
               <td>{e.category}</td>
               <td>{e.description}</td>
               <td>£{e.amount_gbp.toFixed(2)}</td>
+              <td>
+                <button type="button" className="btn-icon btn-icon-danger" title="Delete entry" onClick={() => deleteExpense(e)}>
+                  🗑
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>

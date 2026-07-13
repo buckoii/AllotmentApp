@@ -5,9 +5,22 @@ export default function HarvestLog() {
   const [harvests, setHarvests] = useState([]);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
+  const load = () => {
     api.get("/harvests").then(setHarvests).catch((e) => setError(e.message));
-  }, []);
+  };
+
+  useEffect(load, []);
+
+  const deleteHarvest = async (h) => {
+    if (!window.confirm(`Delete this picking of ${h.plant_name} (${h.harvest_date})? This can't be undone.`)) return;
+    setError(null);
+    try {
+      await api.del(`/harvests/${h.id}`);
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
+  };
 
   const byCrop = useMemo(() => {
     const totals = {};
@@ -48,7 +61,7 @@ export default function HarvestLog() {
       <section>
         <h2>All pickings</h2>
         <table className="data-table">
-          <thead><tr><th>Date</th><th>Crop</th><th>Weight</th><th>Value</th></tr></thead>
+          <thead><tr><th>Date</th><th>Crop</th><th>Weight</th><th>Value</th><th></th></tr></thead>
           <tbody>
             {harvests.map((h) => (
               <tr key={h.id}>
@@ -56,6 +69,11 @@ export default function HarvestLog() {
                 <td>{h.plant_variety ? `${h.plant_name} (${h.plant_variety})` : h.plant_name}</td>
                 <td>{h.quantity_g} g</td>
                 <td>£{h.value_gbp.toFixed(2)}</td>
+                <td>
+                  <button type="button" className="btn-icon btn-icon-danger" title="Delete entry" onClick={() => deleteHarvest(h)}>
+                    🗑
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -14,7 +14,7 @@ app = Flask(__name__, static_folder=FRONTEND_DIST, static_url_path="")
 app.secret_key = os.environ["FLASK_SECRET_KEY"]
 
 PLANTING_UPDATE_FIELDS = {
-    "pricked_out_date", "hardened_off_date", "transplanted_date",
+    "sow_date", "pricked_out_date", "hardened_off_date", "transplanted_date",
     "first_harvest_date", "last_harvest_date", "status", "notes",
 }
 EXPENSE_CATEGORIES = {"fees", "tools", "compost", "seeds", "other"}
@@ -227,6 +227,24 @@ def update_planting(planting_id):
     return jsonify(planting_to_dict(row, plant_row))
 
 
+@app.delete("/api/plantings/<int:planting_id>")
+@login_required
+def delete_planting(planting_id):
+    conn = get_connection()
+    owner = conn.execute(
+        "SELECT user_id FROM plantings WHERE id = ?", (planting_id,)
+    ).fetchone()
+    if not owner or owner["user_id"] != session["user_id"]:
+        conn.close()
+        return jsonify(error="Not found"), 404
+
+    conn.execute("DELETE FROM harvests WHERE planting_id = ?", (planting_id,))
+    conn.execute("DELETE FROM plantings WHERE id = ?", (planting_id,))
+    conn.commit()
+    conn.close()
+    return "", 204
+
+
 @app.get("/api/plantings/<int:planting_id>/bed-sharing")
 @login_required
 def bed_sharing(planting_id):
@@ -295,6 +313,23 @@ def create_harvest():
     return jsonify(id=cur.lastrowid, value_gbp=value_gbp), 201
 
 
+@app.delete("/api/harvests/<int:harvest_id>")
+@login_required
+def delete_harvest(harvest_id):
+    conn = get_connection()
+    owner = conn.execute(
+        "SELECT user_id FROM harvests WHERE id = ?", (harvest_id,)
+    ).fetchone()
+    if not owner or owner["user_id"] != session["user_id"]:
+        conn.close()
+        return jsonify(error="Not found"), 404
+
+    conn.execute("DELETE FROM harvests WHERE id = ?", (harvest_id,))
+    conn.commit()
+    conn.close()
+    return "", 204
+
+
 # ---- Expenses ----
 
 @app.get("/api/expenses")
@@ -330,6 +365,23 @@ def create_expense():
     conn.commit()
     conn.close()
     return jsonify(id=cur.lastrowid), 201
+
+
+@app.delete("/api/expenses/<int:expense_id>")
+@login_required
+def delete_expense(expense_id):
+    conn = get_connection()
+    owner = conn.execute(
+        "SELECT user_id FROM expenses WHERE id = ?", (expense_id,)
+    ).fetchone()
+    if not owner or owner["user_id"] != session["user_id"]:
+        conn.close()
+        return jsonify(error="Not found"), 404
+
+    conn.execute("DELETE FROM expenses WHERE id = ?", (expense_id,))
+    conn.commit()
+    conn.close()
+    return "", 204
 
 
 # ---- Dashboard ----
