@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
 
 const MONTHS = [
@@ -80,6 +81,7 @@ function AddBushForm({ catalog, onAdd }) {
         <MonthSelect value={fruitingEnd} onChange={setFruitingEnd} />
       </label>
       <button type="submit" className="btn-primary">Add bush</button>
+      <Link className="btn-link" to="/add-crop">Don't see it? Add a custom bush &rarr;</Link>
     </form>
   );
 }

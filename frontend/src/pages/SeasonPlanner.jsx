@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api";
 import PlantCard from "../components/PlantCard";
 
@@ -60,7 +61,6 @@ export default function SeasonPlanner() {
           <select value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="">All</option>
             <option value="veg">Veg</option>
-            <option value="fruit">Fruit</option>
             <option value="herb">Herb</option>
           </select>
         </label>
@@ -82,6 +82,9 @@ export default function SeasonPlanner() {
         ))}
       </div>
       {sorted.length === 0 && <p className="empty-hint">Nothing sowable in {MONTHS[month - 1]} for this filter.</p>}
+      <p className="empty-hint">
+        Don't see a crop you grow? <Link className="btn-link" to="/add-crop">Add a custom crop &rarr;</Link>
+      </p>
     </div>
   );
 }

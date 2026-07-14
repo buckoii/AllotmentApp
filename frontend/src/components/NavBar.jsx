@@ -10,6 +10,7 @@ const LINKS = [
   { to: "/harvest", label: "Harvest Log" },
   { to: "/care", label: "Watering & Feeding" },
   { to: "/expenses", label: "Expenses" },
+  { to: "/add-crop", label: "Add a Crop" },
 ];
 
 export default function NavBar() {

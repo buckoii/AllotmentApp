@@ -22,6 +22,54 @@ BUSH_UPDATE_FIELDS = {
 }
 EXPENSE_CATEGORIES = {"fees", "tools", "compost", "seeds", "other"}
 
+# Column order matches schema.sql's `plants` table (minus id) - same list
+# seed_data.py's dicts use, so a user-submitted catalog entry is built the
+# same way a seeded one is.
+PLANT_COLUMNS = [
+    "name", "variety", "category", "germination_days_min", "germination_days_max",
+    "germination_method", "germination_temp_c", "sow_indoor_start_month", "sow_indoor_end_month",
+    "sow_outdoor_start_month", "sow_outdoor_end_month", "transplant_weeks_after_sow",
+    "transplant_start_month", "transplant_end_month", "maturity_from", "days_to_harvest_min",
+    "days_to_harvest_max", "harvest_start_month", "harvest_end_month", "spacing_cm", "yield_unit",
+    "typical_yield_g", "ref_price_gbp_per_kg", "succession_interval_days", "frost_tender", "is_bush",
+    "water_frequency_days", "feed_frequency_days", "notes",
+]
+PLANT_INT_FIELDS = {
+    "germination_days_min", "germination_days_max", "germination_temp_c",
+    "sow_indoor_start_month", "sow_indoor_end_month", "sow_outdoor_start_month", "sow_outdoor_end_month",
+    "transplant_weeks_after_sow", "transplant_start_month", "transplant_end_month",
+    "days_to_harvest_min", "days_to_harvest_max", "harvest_start_month", "harvest_end_month",
+    "spacing_cm", "succession_interval_days", "water_frequency_days", "feed_frequency_days",
+}
+PLANT_FLOAT_FIELDS = {"typical_yield_g", "ref_price_gbp_per_kg"}
+PLANT_BOOL_FIELDS = {"frost_tender", "is_bush"}
+PLANT_REQUIRED_FIELDS = (
+    "name", "category", "germination_method", "maturity_from",
+    "days_to_harvest_min", "days_to_harvest_max", "yield_unit",
+)
+PLANT_CATEGORIES = {"veg", "fruit", "herb"}
+GERMINATION_METHODS = {"indoor_heat", "indoor", "outdoor", "either"}
+MATURITY_FROM_OPTIONS = {"sow", "transplant"}
+YIELD_UNITS = {"per_plant", "per_metre_row"}
+
+
+def _coerce_plant_row(data):
+    row = {}
+    for col in PLANT_COLUMNS:
+        v = data.get(col)
+        try:
+            if col in PLANT_BOOL_FIELDS:
+                row[col] = 1 if v else 0
+            elif col in PLANT_INT_FIELDS:
+                row[col] = int(v) if v not in (None, "") else None
+            elif col in PLANT_FLOAT_FIELDS:
+                row[col] = float(v) if v not in (None, "") else None
+            else:
+                row[col] = v.strip() if isinstance(v, str) and v.strip() != "" else None
+        except (TypeError, ValueError):
+            raise ValueError(f"Invalid value for {col}: {v!r}")
+    return row
+
 
 def login_required(fn):
     @wraps(fn)
@@ -143,6 +191,50 @@ def catalog():
     if month:
         plants = [p for p in plants if growth.sowable_now(p, month)]
     return jsonify(plants)
+
+
+@app.post("/api/catalog")
+@login_required
+def create_plant():
+    """Adds a user-defined catalog entry (custom crop or fruit bush)
+    alongside the seeded/curated ones. The catalog is shared across the
+    household (not per-user), same as the seeded rows - see schema.sql."""
+    data = request.get_json(force=True)
+    try:
+        row = _coerce_plant_row(data)
+    except ValueError as e:
+        return jsonify(error=str(e)), 400
+
+    missing = [f for f in PLANT_REQUIRED_FIELDS if row.get(f) is None]
+    if missing:
+        return jsonify(error=f"Missing required fields: {', '.join(missing)}"), 400
+    if row["category"] not in PLANT_CATEGORIES:
+        return jsonify(error=f"category must be one of {sorted(PLANT_CATEGORIES)}"), 400
+    if row["germination_method"] not in GERMINATION_METHODS:
+        return jsonify(error=f"germination_method must be one of {sorted(GERMINATION_METHODS)}"), 400
+    if row["maturity_from"] not in MATURITY_FROM_OPTIONS:
+        return jsonify(error=f"maturity_from must be one of {sorted(MATURITY_FROM_OPTIONS)}"), 400
+    if row["yield_unit"] not in YIELD_UNITS:
+        return jsonify(error=f"yield_unit must be one of {sorted(YIELD_UNITS)}"), 400
+
+    conn = get_connection()
+    existing = conn.execute(
+        "SELECT id FROM plants WHERE name = ? AND variety IS ?", (row["name"], row["variety"])
+    ).fetchone()
+    if existing:
+        conn.close()
+        return jsonify(error="A plant with this name and variety already exists in the catalog"), 409
+
+    cols = list(row.keys())
+    placeholders = ", ".join("?" for _ in cols)
+    cur = conn.execute(
+        f"INSERT INTO plants ({', '.join(cols)}) VALUES ({placeholders})",
+        tuple(row[c] for c in cols),
+    )
+    conn.commit()
+    new_row = conn.execute("SELECT * FROM plants WHERE id = ?", (cur.lastrowid,)).fetchone()
+    conn.close()
+    return jsonify(plant_to_dict(new_row)), 201
 
 
 # ---- Plots ----

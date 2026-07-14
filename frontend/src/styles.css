@@ -156,6 +156,16 @@ input, select, textarea {
 .bush-add-form { align-items: flex-end; }
 .care-badges { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
+/* Add a Crop / Bush */
+.catalog-form section {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 1rem; margin-bottom: 1rem;
+}
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem 1rem; }
+.range-pair { display: flex; gap: 0.4rem; }
+.range-pair input, .range-pair select { flex: 1; min-width: 0; }
+.checkbox-label { flex-direction: row; align-items: center; gap: 0.4rem; }
+
 @media (max-width: 640px) {
   .nav-bar { flex-wrap: wrap; }
   .nav-bar nav { order: 3; width: 100%; overflow-x: auto; }

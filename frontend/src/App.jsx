@@ -10,6 +10,7 @@ import FruitBushes from "./pages/FruitBushes";
 import HarvestLog from "./pages/HarvestLog";
 import CareSchedule from "./pages/CareSchedule";
 import Expenses from "./pages/Expenses";
+import AddPlant from "./pages/AddPlant";
 
 function Shell() {
   const { user } = useAuth();
@@ -33,6 +34,7 @@ function Shell() {
           <Route path="/harvest" element={<HarvestLog />} />
           <Route path="/care" element={<CareSchedule />} />
           <Route path="/expenses" element={<Expenses />} />
+          <Route path="/add-crop" element={<AddPlant />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
